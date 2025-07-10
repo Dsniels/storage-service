@@ -3,9 +3,11 @@ package controllers
 import (
 	"log"
 	"net/http"
+
 	"time"
 
 	exceptions "github.com/dsniels/storage-service/internal/Exceptions"
+	"github.com/dsniels/storage-service/internal/params"
 	"github.com/dsniels/storage-service/internal/storage"
 	"github.com/dsniels/storage-service/internal/utils"
 	"github.com/go-chi/chi/v5"
@@ -18,6 +20,7 @@ type Controller struct {
 type IController interface {
 	HandleUploadFile(w http.ResponseWriter, r *http.Request)
 	HandleStreamFile(w http.ResponseWriter, r *http.Request)
+	HandleListFiles(w http.ResponseWriter, r *http.Request)
 }
 
 func NewController(store storage.IStore) *Controller {
@@ -56,13 +59,32 @@ func (c *Controller) HandleStreamFile(w http.ResponseWriter, r *http.Request) {
 		exceptions.ThrowException(http.StatusBadRequest, "Must pass an id")
 	}
 
-	stream, err := c.store.GetFile(r.Context(), id)
+	log.Println("Id: ", id)
+	streamer, err := c.store.GetFileProps(r.Context(), id)
+	if err != nil {
+		log.Println("GetFileStream: ", err)
+		exceptions.ThrowException(http.StatusInternalServerError, err.Error())
+	}
+	http.ServeContent(w, r, id, time.Time{}, streamer)
+
+}
+
+func (c *Controller) HandleListFiles(w http.ResponseWriter, r *http.Request) {
+
+	var p params.FileList
+	err := utils.GetParamsFromUrl(r, &p)
 	if err != nil {
 		exceptions.ThrowException(http.StatusInternalServerError, err.Error())
 	}
 
-
-
-	http.ServeContent(w, r, id, time.Time{}, &storage.BlobReader{Ctx: r.Context(),  })
+	files, err := c.store.GetFiles(r.Context(), "temp")
+	if err != nil {
+		exceptions.ThrowException(http.StatusInternalServerError, err.Error())
+	}
+	data := struct {
+		Files  *[]string
+		Params params.FileList
+	}{Files: files, Params: p}
+	utils.WriteResponse(w, http.StatusOK, utils.Response{"data": data})
 
 }
