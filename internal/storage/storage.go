@@ -23,21 +23,23 @@ var container = "temp"
 type IStore interface {
 	GetBlobIdFromURL(ctx context.Context, URL string) (*string, error)
 	UploadFile(ctx context.Context, filename string, content []byte, contentType string) (*string, error)
-	GetFileStream(ctx context.Context, filename string) (io.ReadCloser, error)
-	GetFilesfromContainer(ctx context.Context, container string)
+	GetFiles(ctx context.Context, containerName string) (*[]string, error)
+	GetFileStream(ctx context.Context, filename string) (io.Reader, error)
+	GetFileProps(ctx context.Context, filename string) (io.ReadSeeker, error)
 	EnsureContainer(ctx context.Context, containerName string) error
 }
 
-func NewStore(client *azblob.Client, logger *log.Logger) *Store {
-	return &Store{
-		client: client,
-		logger: logger,
-	}
-}
-
-func (s *Store) GetFileStream(ctx context.Context, filename string, offSet int64) (io.ReadSeeker, error) {
+func (s *Store) GetFileStream(ctx context.Context, filename string) (io.Reader, error) {
 	blobClient := s.client.ServiceClient().NewContainerClient(container).NewBlobClient(filename)
-	props, err := blobClient.GetProperties(ctx, nil)
+	res, err := blobClient.DownloadStream(ctx, &blob.DownloadStreamOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return res.Body, nil
+}
+func (s *Store) GetFileProps(ctx context.Context, filename string) (io.ReadSeeker, error) {
+	blobClient := s.client.ServiceClient().NewContainerClient(container).NewBlobClient(filename)
+	props, err := blobClient.GetProperties(ctx, &blob.GetPropertiesOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +47,6 @@ func (s *Store) GetFileStream(ctx context.Context, filename string, offSet int64
 }
 
 func (s *Store) UploadFile(ctx context.Context, filename string, content []byte, contentType string) (*string, error) {
-	container := "temp"
 	opts := &azblob.UploadBufferOptions{
 		HTTPHeaders: &blob.HTTPHeaders{
 			BlobContentType: &contentType,
@@ -84,6 +85,28 @@ func (s *Store) GetBlobIdFromURL(ctx context.Context, URL string) (*string, erro
 
 	return &last, nil
 }
+func (s *Store) GetFiles(ctx context.Context, containerName string) (*[]string, error) {
+	err := s.EnsureContainer(ctx, containerName)
+	if err != nil {
+		return nil, err
+
+	}
+
+	var blobs []string
+	container := s.client.ServiceClient().NewContainerClient(containerName)
+	pager := container.NewListBlobsFlatPager(nil)
+	for pager.More() {
+		response, err := pager.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, blob := range response.Segment.BlobItems {
+			name := *blob.Name
+			blobs = append(blobs, name)
+		}
+	}
+	return &blobs, nil
+}
 
 func (s *Store) EnsureContainer(ctx context.Context, containerName string) error {
 
@@ -96,4 +119,11 @@ func (s *Store) EnsureContainer(ctx context.Context, containerName string) error
 		return err
 	}
 	return nil
+}
+
+func NewStore(client *azblob.Client, logger *log.Logger) *Store {
+	return &Store{
+		client: client,
+		logger: logger,
+	}
 }
