@@ -12,6 +12,7 @@ func InitRoutes(app *app.App) *chi.Mux {
 
 	router.Group(func(r chi.Router) {
 		r.Post("/UploadFile", app.Controller.HandleUploadFile)
+		r.Delete("/Delete/{id}", app.Controller.HandleDeleteFile)
 		r.Get("/Stream/{id}", app.Controller.HandleStreamFile)
 		r.Get("/ListFiles", app.Controller.HandleListFiles)
 	})

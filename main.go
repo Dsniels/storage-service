@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/dsniels/storage-service/internal/provider"
+	"github.com/dsniels/storage-service/internal/app"
 	"github.com/dsniels/storage-service/internal/router"
 	"github.com/joho/godotenv"
 )
@@ -14,8 +14,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	app := provider.Inject()
-	router := router.InitRoutes(app)
+	services := app.InitServices()
+	router := router.InitRoutes(services)
 
 	server := &http.Server{
 		Addr:    ":8080",
