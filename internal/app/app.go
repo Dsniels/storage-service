@@ -10,9 +10,14 @@ type App struct {
 	Store      storage.IStore
 }
 
-func NewApp(store storage.IStore, controller controllers.IController) *App {
+func InitServices() *App {
+	_ = getLogger()
+	azClient := getAzureClient()
+	blobStore := storage.NewBlobStore(azClient)
+	controllers := controllers.NewController(blobStore, blobStore)
+
 	return &App{
-		Store:      store,
-		Controller: controller,
+		Store:      blobStore,
+		Controller: controllers,
 	}
 }
