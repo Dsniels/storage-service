@@ -6,6 +6,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
+	exceptions "github.com/dsniels/storage-service/internal/Exceptions"
 )
 
 type BlobReader struct {
@@ -38,7 +39,7 @@ func (b *BlobReader) Read(p []byte) (int, error) {
 		Range: azblob.HTTPRange{Count: chunkSize, Offset: b.Pos},
 	})
 	if err != nil {
-		return 0, err
+		exceptions.ThrowInternalServerError()
 	}
 	defer res.Body.Close()
 
