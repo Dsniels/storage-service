@@ -1,10 +1,12 @@
-package storage
+package store
 
 import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
@@ -13,6 +15,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 	exceptions "github.com/dsniels/storage-service/internal/Exceptions"
+	"github.com/google/uuid"
 )
 
 type BlobStore struct {
@@ -41,22 +44,21 @@ func (s *BlobStore) UploadFile(ctx context.Context, filename string, content []b
 		},
 		BlockSize: int64(8 * 1024 * 1024),
 	}
-
+	extension := filepath.Ext(filename)
+	id, _ := uuid.NewUUID()
+	filename = fmt.Sprintf("%s%v", id, extension)
 	_, err := s.getContainer(ctx, defaultName)
 	if err != nil {
 		return nil, err
 	}
 	filename = strings.ReplaceAll(filename, " ", "")
-
 	_, err = s.UploadBuffer(ctx, defaultName, filename, content, opts)
 	if err != nil {
 		return nil, err
 	}
-
 	endpoint := s.URL()
 
 	url := fmt.Sprintf("%s%s/%s", endpoint, defaultName, filename)
-
 	return &url, nil
 }
 
@@ -65,19 +67,23 @@ func (s *BlobStore) GetBlobIdFromURL(ctx context.Context, URL string) (*string, 
 	if err != nil {
 		return nil, err
 	}
-
-	arr := strings.Split(u.Path, "/")
-	last := arr[len(arr)-1]
+	str := u.String()
+	log.Println(str)
+	last := filepath.Base(str)
+	log.Println(last)
 
 	return &last, nil
 }
+
 func (s *BlobStore) GetFiles(ctx context.Context, containerName string, prefix string) (*[]string, error) {
 	var blobs []string
 	container, err := s.getContainer(ctx, defaultName)
 	if err != nil {
 		exceptions.ThrowInternalServerError("Couldnt get the container")
-
 	}
+
+	
+
 	pager := container.NewListBlobsFlatPager(&azblob.ListBlobsFlatOptions{
 		Prefix: &prefix,
 	})
@@ -134,6 +140,7 @@ func (s *BlobStore) DeleteFile(ctx context.Context, filename string, containerNa
 	if err != nil {
 		return err
 	}
+	log.Println(containerName, filename)
 
 	blobClient := container.NewBlobClient(filename)
 
@@ -145,8 +152,7 @@ func (s *BlobStore) DeleteFile(ctx context.Context, filename string, containerNa
 		exceptions.ThrowNotFound()
 	}
 
-	return exceptions.ErrorBadRequest
-
+	return nil
 }
 
 func NewBlobStore(client *azblob.Client) *BlobStore {

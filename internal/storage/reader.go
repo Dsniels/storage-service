@@ -1,4 +1,4 @@
-package storage
+package store
 
 import (
 	"context"
@@ -30,7 +30,7 @@ func (b *BlobReader) Read(p []byte) (int, error) {
 		return n, nil
 	}
 
-	chunkSize := int64(2 * 1024 * 1024)
+	chunkSize := int64(len(p))
 	if remaining := b.Size - b.Pos; remaining < chunkSize {
 		chunkSize = remaining
 	}

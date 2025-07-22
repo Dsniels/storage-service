@@ -8,14 +8,16 @@ import (
 
 	exceptions "github.com/dsniels/storage-service/internal/Exceptions"
 	"github.com/dsniels/storage-service/internal/params"
-	"github.com/dsniels/storage-service/internal/storage"
+	store "github.com/dsniels/storage-service/internal/storage"
 	"github.com/dsniels/storage-service/internal/utils"
+	pb "github.com/dsniels/storage-service/proto"
 	"github.com/go-chi/chi/v5"
 )
 
 type Controller struct {
-	store  storage.IStore
-	stream storage.IStream
+	store     store.IStore
+	stream    store.IStream
+	rpcClient pb.CursosProtoServiceClient
 }
 
 type IController interface {
@@ -27,7 +29,6 @@ type IController interface {
 
 func (c *Controller) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 3*1024*1024*1024)
-	log.Println(r.Method)
 	file, file_header, err := r.FormFile("file")
 	if err != nil {
 		exceptions.ThrowBadRequest(err.Error())
@@ -50,19 +51,33 @@ func (c *Controller) HandleStreamFile(w http.ResponseWriter, r *http.Request) {
 	if id == "" {
 		exceptions.ThrowBadRequest("Must pass an id")
 	}
-
-	streamer, err := c.stream.GetStream(r.Context(), id)
+	var b = struct{ UserId string }{}
+	utils.GetParamsFromUrl(r, b)
+	response, err := c.rpcClient.CheckUserAccess(r.Context(), &pb.CursoAccessRequest{UserId: b.UserId})
 	if err != nil {
 		exceptions.ThrowInternalServerError(err.Error())
 	}
-	http.ServeContent(w, r, id, time.Time{}, streamer)
+
+	if response.Ok {
+		streamer, err := c.stream.GetStream(r.Context(), id)
+		if err != nil {
+			exceptions.ThrowInternalServerError(err.Error())
+		}
+		http.ServeContent(w, r, id, time.Time{}, streamer)
+	} else {
+		exceptions.ThrowBadRequest("you cannot see this")
+	}
 
 }
 
 func (c *Controller) HandleListFiles(w http.ResponseWriter, r *http.Request) {
-
+	response, err := c.rpcClient.SayHi(r.Context(), &pb.HiRequest{Name: "Daniel"})
+	if err != nil {
+		log.Panicln(err)
+	}
+	log.Println(response.Message)
 	var p params.FileList
-	err := utils.GetParamsFromUrl(r, &p)
+	err = utils.GetParamsFromUrl(r, &p)
 	if err != nil {
 		exceptions.ThrowInternalServerError(err.Error())
 	}
@@ -95,9 +110,10 @@ func (c *Controller) HandleDeleteFile(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func NewController(store storage.IStore, stream storage.IStream) *Controller {
+func NewController(store store.IStore, stream store.IStream, rpc pb.CursosProtoServiceClient) *Controller {
 	return &Controller{
-		store:  store,
-		stream: stream,
+		store:     store,
+		rpcClient: rpc,
+		stream:    stream,
 	}
 }
