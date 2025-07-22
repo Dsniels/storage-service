@@ -3,7 +3,6 @@ package exceptions
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -17,9 +16,7 @@ var ErrorBadRequest = errors.New("bad request")
 func HandleError(w http.ResponseWriter, err interface{}) {
 
 	str := fmt.Sprint(err)
-	log.Println(str)
 	arr := strings.Split(str, ":")
-	log.Println(arr)
 
 	key := arr[0]
 	val := arr[len(arr)-1]
@@ -38,7 +35,6 @@ func HandleError(w http.ResponseWriter, err interface{}) {
 
 func ThrowException(statusCode int, message string) {
 	err := errors.New(message)
-	log.Println(err)
 	err = fmt.Errorf("%v: %v", statusCode, err)
 	panic(err)
 }
