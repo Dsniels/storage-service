@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+option go_package = "./pb";
+
+package cursos;
+
+
+message GetCursoRequest{
+    int32 id = 1;
+}
+
+message CursoAccessRequest { 
+    string userId = 1;
+    int32 cursoId = 2;
+}
+
+message CursoAccessResponse { 
+    bool ok = 1;
+}
+
+
+message GetCursoResponse{
+    int32 id = 1;
+    string titulo = 2;
+    string status  = 3;
+    string video = 4;
+}
+
+message HiRequest{
+    string name = 1;
+}
+
+message HiResponse{
+    string message = 1;
+}
+
+service CursosProtoService {
+    rpc GetCursoByID(GetCursoRequest) returns (GetCursoResponse);
+    rpc CheckUserAccess(CursoAccessRequest) returns (CursoAccessResponse);
+    rpc SayHi(HiRequest)returns(HiResponse);
+}
+
