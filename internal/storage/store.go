@@ -6,10 +6,10 @@ import (
 )
 
 type IStore interface {
-	GetBlobIdFromURL(ctx context.Context, URL string) (*string, error)
+	GetFileIdFromURL(ctx context.Context, URL string) (*string, error)
 	UploadFile(ctx context.Context, filename string, content []byte, contentType string) (*string, error)
-	GetFiles(ctx context.Context, containerName string, prefix string) (*[]string, error)
-	DeleteFile(ctx context.Context, filename string, containerName string) error
+	GetFiles(context.Context, string, string) (*[]string, error)
+	DeleteFile(context.Context, string, string) error
 }
 
 type IStream interface {

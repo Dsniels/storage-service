@@ -37,6 +37,7 @@ func (s *BlobStore) GetStream(ctx context.Context, filename string) (io.ReadSeek
 	return &BlobReader{Size: *props.ContentLength, Client: blobClient, Pos: 0, Ctx: ctx}, nil
 }
 
+
 func (s *BlobStore) UploadFile(ctx context.Context, filename string, content []byte, contentType string) (*string, error) {
 	opts := &azblob.UploadBufferOptions{
 		HTTPHeaders: &blob.HTTPHeaders{
@@ -62,7 +63,7 @@ func (s *BlobStore) UploadFile(ctx context.Context, filename string, content []b
 	return &url, nil
 }
 
-func (s *BlobStore) GetBlobIdFromURL(ctx context.Context, URL string) (*string, error) {
+func (s *BlobStore) GetFileIdFromURL(ctx context.Context, URL string) (*string, error) {
 	u, err := url.Parse(URL)
 	if err != nil {
 		return nil, err
@@ -81,8 +82,6 @@ func (s *BlobStore) GetFiles(ctx context.Context, containerName string, prefix s
 	if err != nil {
 		exceptions.ThrowInternalServerError("Couldnt get the container")
 	}
-
-	
 
 	pager := container.NewListBlobsFlatPager(&azblob.ListBlobsFlatOptions{
 		Prefix: &prefix,
@@ -124,9 +123,12 @@ func (s *BlobStore) getContainer(ctx context.Context, containerName string) (*co
 		return nil, err
 	}
 
-	container := s.ServiceClient().NewContainerClient(containerName)
+	accessType := container.PublicAccessTypeContainer
+	c := s.ServiceClient().NewContainerClient(containerName)
+	c.SetAccessPolicy(ctx, &container.SetAccessPolicyOptions{
+		Access: &accessType})
 
-	return container, nil
+	return c, nil
 
 }
 
