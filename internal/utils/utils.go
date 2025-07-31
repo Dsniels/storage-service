@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -24,13 +25,19 @@ func WriteResponse(w http.ResponseWriter, status int, data any) error {
 	w.Write(json)
 	return nil
 }
-func GetIdFromUrl(r *http.Request) (string, error) {
-
+func GetIdFromUrl(r *http.Request) (int64, error) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
-		return "", fmt.Errorf("must provide an id")
+		return 0, fmt.Errorf("must provide an id")
 	}
-	return id, nil
+
+	i, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		log.Fatalln("error parsing int", err)
+		return 0, fmt.Errorf("must provide an id")
+	}
+
+	return i, nil
 }
 
 func GetQueryFromUrl(r *http.Request) (string, error) {

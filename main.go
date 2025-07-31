@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"os"
@@ -12,14 +11,10 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
+	godotenv.Load()
 
 	services := app.InitServices()
-	defer services.Conn.Close()
-	go services.Queue.DeleteFileConsumer(context.Background())
+
 
 	router := router.InitRoutes(services)
 	server := &http.Server{
@@ -28,7 +23,7 @@ func main() {
 	}
 	log.Println("Running server....")
 
-	err = server.ListenAndServe()
+	err := server.ListenAndServe()
 	if err != nil {
 		log.Fatal(err)
 	}
