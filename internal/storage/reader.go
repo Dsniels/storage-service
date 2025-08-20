@@ -3,10 +3,10 @@ package store
 import (
 	"context"
 	"io"
+	"log/slog"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
-	exceptions "github.com/dsniels/storage-service/internal/Exceptions"
 )
 
 type BlobReader struct {
@@ -39,7 +39,8 @@ func (b *BlobReader) Read(p []byte) (int, error) {
 		Range: azblob.HTTPRange{Count: chunkSize, Offset: b.Pos},
 	})
 	if err != nil {
-		exceptions.ThrowInternalServerError()
+		slog.Error("Download Stream: ", err)
+		return 0, err
 	}
 	defer res.Body.Close()
 
@@ -67,9 +68,7 @@ func (b *BlobReader) Seek(offset int64, whence int) (int64, error) {
 
 	if b.Pos < 0 {
 		b.Pos = 0
-
 	}
-
 	return b.Pos, nil
 
 }

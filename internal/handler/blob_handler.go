@@ -1,10 +1,9 @@
 package handler
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
-
 	"time"
 
 	exceptions "github.com/dsniels/storage-service/internal/Exceptions"
@@ -29,15 +28,16 @@ func (c *BlobHandler) HandleStreamFile(w http.ResponseWriter, r *http.Request) {
 	}
 	response, err := c.rpcClient.GetCursoByID(r.Context(), &pb.GetCursoRequest{Id: int32(id)})
 	if err != nil {
-		log.Fatalf("Error GetCurso grpc %v", err)
+		slog.Error("Error GetCurso grpc: ", err)
 	}
 	video := response.GetVideo()
 	videoId, err := c.store.GetFileIdFromURL(r.Context(), video)
 	if err != nil {
-		log.Fatalf("Error getting video id %v", err)
+		slog.Error("Getting video id: ", err)
 	}
 	streamer, err := c.stream.GetStream(r.Context(), *videoId)
 	if err != nil {
+		slog.Error("Getting Stream: ", err)
 		exceptions.ThrowInternalServerError(err.Error())
 	}
 	w.Header().Add("Content-Type", "application/octet-stream")

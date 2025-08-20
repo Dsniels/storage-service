@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -69,10 +68,7 @@ func (s *BlobStore) GetFileIdFromURL(ctx context.Context, URL string) (*string, 
 		return nil, err
 	}
 	str := u.String()
-	log.Println(str)
 	last := filepath.Base(str)
-	log.Println(last)
-
 	return &last, nil
 }
 
@@ -142,7 +138,6 @@ func (s *BlobStore) DeleteFile(ctx context.Context, filename string, containerNa
 	if err != nil {
 		return err
 	}
-	log.Println(containerName, filename)
 
 	blobClient := container.NewBlobClient(filename)
 
