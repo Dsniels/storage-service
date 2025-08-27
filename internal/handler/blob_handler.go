@@ -40,6 +40,7 @@ func (c *BlobHandler) HandleStreamFile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		exceptions.ThrowInternalServerError(err.Error())
 	}
+	w.Header().Add("Cache-Control", "public, max-age=31536000")
 	w.Header().Add("Content-Type", "video/mp4")
 	http.ServeContent(w, r, string(int32(id)), time.Time{}, streamer)
 
