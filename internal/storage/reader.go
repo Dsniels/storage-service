@@ -35,24 +35,22 @@ func (b *BlobReader) Read(p []byte) (int, error) {
 		chunkSize = remaining
 	}
 
-	res, err := b.Client.DownloadStream(b.Ctx, &blob.DownloadStreamOptions{
-		Range: azblob.HTTPRange{Count: chunkSize, Offset: b.Pos},
+	res, err := b.Client.DownloadBuffer(b.Ctx, p, &blob.DownloadBufferOptions{
+		Progress: func(bytesTransferred int64) {
+			slog.Info("Downloading", slog.Int64("bytes", bytesTransferred))
+		},
+		Concurrency: 6,
+		BlockSize:   2 * 1024 * 1024,
+		Range:       azblob.HTTPRange{Count: chunkSize, Offset: b.Pos},
 	})
 	if err != nil {
 		slog.Error("Download Stream: ", err)
 		return 0, err
 	}
-	defer res.Body.Close()
-
-	b.buffer, err = io.ReadAll(res.Body)
-	if err != nil {
-		return 0, err
-	}
-
+	copy(b.buffer, p)
 	b.bufferStart = b.Pos
-	n := copy(p, b.buffer)
-	b.Pos += int64(n)
-	return n, nil
+	b.Pos += res
+	return int(res), nil
 }
 
 func (b *BlobReader) Seek(offset int64, whence int) (int64, error) {

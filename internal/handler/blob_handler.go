@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"io"
 	"log/slog"
+	"mime"
+	"mime/multipart"
 	"net/http"
-	"sync"
 	"time"
 
 	exceptions "github.com/dsniels/storage-service/internal/Exceptions"
@@ -18,7 +20,6 @@ type BlobHandler struct {
 	store     store.IStore
 	stream    store.IStream
 	rpcClient pb.CursosProtoServiceClient
-	cache     sync.Map
 }
 
 func (c *BlobHandler) HandleStreamFile(w http.ResponseWriter, r *http.Request) {
@@ -40,28 +41,28 @@ func (c *BlobHandler) HandleStreamFile(w http.ResponseWriter, r *http.Request) {
 		slog.Error("Getting Stream: ", err)
 		exceptions.ThrowInternalServerError(err.Error())
 	}
-	w.Header().Add("Content-Type", "application/octet-stream")
+	w.Header().Add("Content-Type", "video/mp4")
 	http.ServeContent(w, r, string(int32(id)), time.Time{}, streamer)
 
 }
 
 func (c *BlobHandler) HandleUploadFile(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, 3*1024*1024*1024)
-	file, file_header, err := r.FormFile("file")
-	if err != nil {
-		exceptions.ThrowBadRequest(err.Error())
-	}
-	buff := make([]byte, file_header.Size)
-	_, err = file.Read(buff)
-	if err != nil {
-		exceptions.ThrowBadRequest(err.Error())
-	}
+	r.Body = http.MaxBytesReader(w, r.Body, 10*1024*1024*1024)
+	contentType := r.Header.Get("Content-Type")
+	_, params, _ := mime.ParseMediaType(contentType)
+	m := multipart.NewReader(r.Body, params["boundary"])
 
-	url, err := c.store.UploadFile(r.Context(), file_header.Filename, buff, file_header.Header.Get("content-type"))
-	if err != nil {
-		exceptions.ThrowInternalServerError(err.Error())
+	for {
+		part, err := m.NextPart()
+		if err == io.EOF {
+			break
+		}
+		url, err := c.store.UploadBlob(r.Context(), part.FileName(), part, part.Header.Values("content-type")[0])
+		if err != nil {
+			exceptions.ThrowInternalServerError("uploading to azure", err.Error())
+		}
+		utils.WriteResponse(w, http.StatusOK, utils.Response{"data": url})
 	}
-	utils.WriteResponse(w, http.StatusOK, utils.Response{"data": url})
 }
 
 func (c *BlobHandler) HandleListFiles(w http.ResponseWriter, r *http.Request) {

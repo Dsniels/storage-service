@@ -36,13 +36,17 @@ func (s *BlobStore) GetStream(ctx context.Context, filename string) (io.ReadSeek
 	return &BlobReader{Size: *props.ContentLength, Client: blobClient, Pos: 0, Ctx: ctx}, nil
 }
 
+func (f *BlobStore) UploadFile(ctx context.Context, filename string, content []byte, contentType string) (*string, error) {
+	return nil, nil
+}
 
-func (s *BlobStore) UploadFile(ctx context.Context, filename string, content []byte, contentType string) (*string, error) {
-	opts := &azblob.UploadBufferOptions{
+func (s *BlobStore) UploadBlob(ctx context.Context, filename string, content io.Reader, contentType string) (*string, error) {
+	opts := &azblob.UploadStreamOptions{
+		Concurrency: 10,
 		HTTPHeaders: &blob.HTTPHeaders{
 			BlobContentType: &contentType,
 		},
-		BlockSize: int64(8 * 1024 * 1024),
+		BlockSize: int64(5 * 1024 * 1024),
 	}
 	extension := filepath.Ext(filename)
 	id, _ := uuid.NewUUID()
@@ -52,7 +56,7 @@ func (s *BlobStore) UploadFile(ctx context.Context, filename string, content []b
 		return nil, err
 	}
 	filename = strings.ReplaceAll(filename, " ", "")
-	_, err = s.UploadBuffer(ctx, defaultName, filename, content, opts)
+	_, err = s.UploadStream(ctx, defaultName, filename, content, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +65,6 @@ func (s *BlobStore) UploadFile(ctx context.Context, filename string, content []b
 	url := fmt.Sprintf("%s%s/%s", endpoint, defaultName, filename)
 	return &url, nil
 }
-
 func (s *BlobStore) GetFileIdFromURL(ctx context.Context, URL string) (*string, error) {
 	u, err := url.Parse(URL)
 	if err != nil {
